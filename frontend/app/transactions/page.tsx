@@ -13,7 +13,7 @@ interface Transaction {
     _id: string
     from: string
     to: string
-    amount_usd: number
+    amount_usd: numbera
     from_country: string
     to_country: string
     timestamp: string

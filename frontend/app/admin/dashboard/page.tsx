@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { Globe, ArrowRight, User, Clock, AlertTriangle } from "lucide-react";
+import { Globe, ArrowRight, User, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -16,7 +16,7 @@ export default function TransactionsPage() {
       try {
         const res = await fetch("/api/admin/fetch-transactions");
         const data = await res.json();
-        console.log("Fetched transactions:", data); // Add debug log
+        console.log("Fetched transactions:", data);
         setTransactions(data.transactions);
       } catch (error) {
         console.error("Failed to fetch transactions", error);
@@ -24,17 +24,16 @@ export default function TransactionsPage() {
         setLoading(false);
       }
     };
-
     fetchTransactions();
   }, []);
 
-  // Modified filter to use risk score and status
-  const fraudulentTransactions = transactions.filter(
-    tx => (tx.risk_score >= 0.7 && tx.risk_score != null) && tx.status === "pending"
+  // Fraud detection logic
+  const fraudulentTransactions = transactions.filter(tx => 
+    (tx.risk_score >= 0.6 || tx.loop_detected) && 
+    (tx.status === "pending" || tx.status === "under_review")
   );
 
-  // Helper function to determine fraud status
-  const isFraudulent = (tx: any) => tx.risk_score >= 0.7;
+  const isFraudulent = (tx: any) => tx.risk_score >= 0.6 || tx.loop_detected;
 
   return (
     <div className="space-y-6">
@@ -42,12 +41,12 @@ export default function TransactionsPage() {
         <TabsList>
           <TabsTrigger value="all">All Transactions</TabsTrigger>
           <TabsTrigger value="fraud">
-            <AlertTriangle className="w-4 h-4 mr-2" />
-            Fraudulent Activity
+            <ShieldAlert className="w-4 h-4 mr-2" />
+            Fraud Analysis
           </TabsTrigger>
         </TabsList>
 
-        {/* All Transactions Tab */}
+        {/* All Transactions Tab - Simplified View */}
         <TabsContent value="all" className="space-y-4">
           {loading ? (
             <p>Loading transactions...</p>
@@ -70,16 +69,16 @@ export default function TransactionsPage() {
           )}
         </TabsContent>
 
-        {/* Fraudulent Transactions Tab */}
+        {/* Fraud Analysis Tab - Detailed View */}
         <TabsContent value="fraud" className="space-y-4">
           {loading ? (
             <p>Loading transactions...</p>
           ) : fraudulentTransactions.length === 0 ? (
             <div className="text-center py-12">
-              <AlertTriangle className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No fraudulent activity detected</h3>
+              <ShieldAlert className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">No suspicious activity found</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                All transactions appear to be legitimate
+                All transactions cleared by risk analysis
               </p>
             </div>
           ) : (
@@ -90,11 +89,10 @@ export default function TransactionsPage() {
               className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
             >
               {fraudulentTransactions.map((transaction, index) => (
-                <TransactionCard
+                <FraudTransactionCard
                   key={transaction._id}
                   transaction={transaction}
                   index={index}
-                  isFraudulent={true}
                 />
               ))}
             </motion.div>
@@ -105,6 +103,7 @@ export default function TransactionsPage() {
   );
 }
 
+// Simplified card for All Transactions view
 function TransactionCard({ transaction, index, isFraudulent }: { 
   transaction: any, 
   index: number, 
@@ -118,7 +117,7 @@ function TransactionCard({ transaction, index, isFraudulent }: {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
     >
-      <Card className={`hover:border-primary/50 transition-colors group ${isFraudulent ? "border-red-500/30" : ""}`}>
+      <Card className={`hover:border-primary/50 transition-colors ${isFraudulent ? "border-red-500/30" : ""}`}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center gap-2">
             <Badge
@@ -128,7 +127,7 @@ function TransactionCard({ transaction, index, isFraudulent }: {
               {isFraudulent ? (
                 <>
                   <AlertTriangle className="h-4 w-4 mr-1" />
-                  Fraud Detected
+                  High Risk
                 </>
               ) : (
                 <>
@@ -144,25 +143,9 @@ function TransactionCard({ transaction, index, isFraudulent }: {
               ${Number(transaction.amount_usd).toLocaleString()}
             </span>
           </div>
-          <Globe className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+          <Globe className="h-5 w-5 text-muted-foreground" />
         </CardHeader>
         <CardContent className="space-y-4">
-          {isFraudulent && (
-            <div className="bg-red-500/10 p-3 rounded-lg">
-              <div className="flex items-center gap-2 text-red-500">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="font-medium">
-                  Risk Score: {(transaction.risk_score * 100).toFixed(1)}%
-                </span>
-              </div>
-              {transaction.loop_detected === "yes" && (
-                <p className="text-sm mt-2">
-                  Detected transaction loop (Size: {transaction.loop_size})
-                </p>
-              )}
-            </div>
-          )}
-          
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -188,6 +171,120 @@ function TransactionCard({ transaction, index, isFraudulent }: {
             <div>
               <p className="text-muted-foreground">Receiver</p>
               <p className="truncate font-mono">{transaction.to}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+// Detailed card for Fraud Analysis view
+function FraudTransactionCard({ transaction, index }: { transaction: any, index: number }) {
+  const transactionDate = new Date(transaction.timestamp);
+  const riskPercentage = (transaction.risk_score * 100).toFixed(1);
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+    >
+      <Card className="border-red-500/30 hover:border-red-500/50 transition-colors">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="destructive" className="rounded-full px-3 py-1 text-sm">
+              <ShieldAlert className="h-4 w-4 mr-1" />
+              {transaction.risk_level || "High Risk"}
+            </Badge>
+            <span className="text-muted-foreground text-sm">
+              ${Number(transaction.amount_usd).toLocaleString()}
+            </span>
+          </div>
+          <Globe className="h-5 w-5 text-muted-foreground" />
+        </CardHeader>
+        
+        <CardContent className="space-y-4">
+          {/* Risk Analysis Section */}
+          <div className="bg-red-500/10 p-3 rounded-lg space-y-2">
+            <div className="flex items-center gap-2 text-red-500">
+              <AlertTriangle className="h-4 w-4" />
+              <h4 className="font-semibold">Risk Analysis ({riskPercentage}%)</h4>
+            </div>
+            
+            {transaction.risk_factors?.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Risk Factors:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {transaction.risk_factors.map((factor: string, i: number) => (
+                    <li key={i} className="text-xs text-red-500">{factor}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {transaction.risk_actions?.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Recommended Actions:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {transaction.risk_actions
+                    .filter((action: string) => action)
+                    .map((action: string, i: number) => (
+                      <li key={i} className="text-xs text-yellow-500">{action}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Loop Analysis Section */}
+          {transaction.loop_detected && (
+            <div className="bg-orange-500/10 p-3 rounded-lg space-y-2">
+              <div className="flex items-center gap-2 text-orange-500">
+                <AlertTriangle className="h-4 w-4" />
+                <h4 className="font-semibold">Suspicious Transaction Pattern</h4>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <p className="font-medium">Loop Size:</p>
+                  <p>{transaction.loop_size}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Total Cycled:</p>
+                  <p>{transaction.full_analysis?.loop_analysis?.total_amount || 'N/A'}</p>
+                </div>
+              </div>
+
+              {transaction.loop_participants?.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mt-2">Participants:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {transaction.loop_participants.map((participant: string, i: number) => (
+                      <span key={i} className="px-2 py-1 bg-red-500/20 text-red-500 rounded-full text-xs">
+                        {participant}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Transaction Metadata */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <User className="h-4 w-4 text-primary" />
+              <span className="font-medium">{transaction.from_country}</span>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{transaction.to_country}</span>
+            </div>
+            
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span>{transactionDate.toLocaleDateString()}</span>
+              <span>•</span>
+              <span>{transactionDate.toLocaleTimeString()}</span>
             </div>
           </div>
         </CardContent>

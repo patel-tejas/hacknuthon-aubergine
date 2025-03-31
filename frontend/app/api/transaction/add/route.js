@@ -122,43 +122,51 @@ export async function POST(request) {
     console.log("[FEATURES] Final feature set:", features);
 
     console.log("[RISK] Sending request to risk service");
-    const riskResponse = await fetch("https://edfb-2401-4900-8898-3038-e0ff-172c-b122-a0ef.ngrok-free.app/analyze", {
+    const riskResponse = await fetch("https://16b5-2401-4900-8898-3038-8517-df3f-4146-bff0.ngrok-free.app/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(features)
     });
 
     console.log("[RISK] Response status:", riskResponse.status);
+    console.log("[RISK] Full response:", riskResponse);  // Log full response
+    
+    const responseText = await riskResponse.text();
+    console.log("[RISK] Raw response body:", responseText);
+
     if (!riskResponse.ok) {
-      const errorText = await riskResponse.text();
-      console.error("[RISK] Assessment failed:", errorText);
-      throw new Error(`Risk assessment failed: ${errorText}`);
+      console.error("[RISK] Assessment failed:", responseText);
+      throw new Error(`Risk assessment failed: ${responseText}`);
     }
 
-    console.log("[RISK] Parsing response JSON");
     let riskData;
     try {
-      riskData = await riskResponse.json();
-      console.log("[RISK] Received risk data:", riskData);
+      riskData = JSON.parse(responseText);
+      console.log("[RISK] Parsed risk data:", JSON.stringify(riskData, null, 2));
     } catch (e) {
       console.error("[RISK] JSON parse error:", e);
       throw new Error("Invalid JSON from risk service");
     }
 
-    if (!riskData || typeof riskData.combined_risk_score === 'undefined') {
+    // Validate response structure
+    if (!riskData?.risk_analysis?.score) {
       console.error("[RISK] Invalid response format:", riskData);
       throw new Error("Risk service returned invalid format");
     }
 
+    // Extract all relevant data
     const { 
-      combined_risk_score,
-      loop_detected = "no",
-      loop_size = 0
+      transaction: riskTransaction,
+      loop_analysis,
+      risk_analysis,
+      timestamp: riskTimestamp
     } = riskData;
+
     console.log("[RISK] Processed risk values:", {
-      combined_risk_score,
-      loop_detected,
-      loop_size
+      score: risk_analysis.score,
+      level: risk_analysis.level,
+      loopDetected: loop_analysis?.detected,
+      cycleSize: loop_analysis?.cycle_size
     });
 
     console.log("[DB] Creating transaction document");
@@ -170,8 +178,15 @@ export async function POST(request) {
       from_country,
       to_country,
       timestamp: transactionDate,
-      risk_score: combined_risk_score,
-      status: combined_risk_score < 0.7 ? "completed" : "pending"
+      risk_score: risk_analysis.score,
+      risk_level: risk_analysis.level,
+      loop_detected: loop_analysis?.detected || false,
+      loop_size: loop_analysis?.cycle_size || 0,
+      risk_factors: risk_analysis.factors,
+      risk_actions: risk_analysis.actions,
+      loop_participants: loop_analysis?.participants || [],
+      full_analysis: riskData,  // Store complete analysis
+      status: risk_analysis.score < 0.7 ? "completed" : "under_review"
     });
 
     console.log("[DB] Saving transaction:", newTransaction);
@@ -192,8 +207,10 @@ export async function POST(request) {
     return new Response(
       JSON.stringify({
         message: "Transaction created successfully",
-        transaction: newTransaction,
-        risk_data: riskData
+        transaction: newTransaction.toObject(),
+        risk_analysis,
+        loop_analysis,
+        full_data: riskData
       }),
       { 
         status: 201,
