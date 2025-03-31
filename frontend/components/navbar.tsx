@@ -11,7 +11,8 @@ const navLinks = [
   { name: "Home", href: "/" },
   { name: "About", href: "/about" },
   { name: "Features", href: "/features" },
-  { name: "Dashboard", href: "/dashboard" },
+  { name: "Transactions", href: "/transactions" },
+  { name: "Admin", href: "/admin/dashboard" },
 ]
 
 export function Navbar() {
@@ -29,7 +30,7 @@ export function Navbar() {
                 animate={{ rotate: 360 }}
                 transition={{ duration: 20, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
               />
-              <span className="text-xl font-bold gradient-text">NexusAI</span>
+              <span className="text-xl font-bold gradient-text">Protract</span>
             </Link>
           </div>
 

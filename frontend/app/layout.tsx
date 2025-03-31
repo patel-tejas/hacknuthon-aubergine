@@ -12,7 +12,7 @@ const montserrat = Montserrat({
 })
 
 export const metadata: Metadata = {
-  title: "NexusAI - AI & Blockchain Solutions",
+  title: "Protract- Fraud Detection",
   description: "Advanced AI and blockchain solutions for the modern world",
   generator: 'v0.dev'
 }

@@ -122,7 +122,7 @@ export async function POST(request) {
     console.log("[FEATURES] Final feature set:", features);
 
     console.log("[RISK] Sending request to risk service");
-    const riskResponse = await fetch("https://16b5-2401-4900-8898-3038-8517-df3f-4146-bff0.ngrok-free.app/analyze", {
+    const riskResponse = await fetch("https://d185-2402-3a80-4652-dab9-fda0-bf80-8bff-9dcf.ngrok-free.app/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(features)
@@ -149,10 +149,10 @@ export async function POST(request) {
     }
 
     // Validate response structure
-    if (!riskData?.risk_analysis?.score) {
-      console.error("[RISK] Invalid response format:", riskData);
-      throw new Error("Risk service returned invalid format");
-    }
+    // if (!riskData?.risk_analysis?.score) {
+    //   console.error("[RISK] Invalid response format:", riskData);
+    //   throw new Error("Risk service returned invalid format");
+    // }
 
     // Extract all relevant data
     const { 

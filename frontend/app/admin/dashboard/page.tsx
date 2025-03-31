@@ -1,5 +1,5 @@
 "use client";
-
+import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,11 +29,10 @@ export default function TransactionsPage() {
 
   // Fraud detection logic
   const fraudulentTransactions = transactions.filter(tx => 
-    (tx.risk_score >= 0.6 || tx.loop_detected) && 
-    (tx.status === "pending" || tx.status === "under_review")
+    (tx.risk_score >= 0.3 || tx.loop_detected)
   );
 
-  const isFraudulent = (tx: any) => tx.risk_score >= 0.6 || tx.loop_detected;
+  const isFraudulent = (tx: any) => (tx.risk_score >= 0.3 || tx.loop_detected);
 
   return (
     <div className="space-y-6">
@@ -173,6 +172,10 @@ function TransactionCard({ transaction, index, isFraudulent }: {
               <p className="truncate font-mono">{transaction.to}</p>
             </div>
           </div>
+
+          <div className="flex mt-2">
+              <h1 className="bg-yellow-400/50 px-2 py-1 rounded text-sm">Risk Score: {transaction.risk_score.toFixed(2)}</h1>
+          </div>
         </CardContent>
       </Card>
     </motion.div>
@@ -207,6 +210,7 @@ function FraudTransactionCard({ transaction, index }: { transaction: any, index:
         <CardContent className="space-y-4">
           {/* Risk Analysis Section */}
           <div className="bg-red-500/10 p-3 rounded-lg space-y-2">
+            <span>{`${transaction.from}-> ${transaction.to}`}</span>
             <div className="flex items-center gap-2 text-red-500">
               <AlertTriangle className="h-4 w-4" />
               <h4 className="font-semibold">Risk Analysis ({riskPercentage}%)</h4>
@@ -285,6 +289,11 @@ function FraudTransactionCard({ transaction, index }: { transaction: any, index:
               <span>{transactionDate.toLocaleDateString()}</span>
               <span>•</span>
               <span>{transactionDate.toLocaleTimeString()}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button className="bg-red-500 hover:bg-red-700 duration-200 transition">Block Transaction</Button>
+              <Button>Block User</Button>
             </div>
           </div>
         </CardContent>
