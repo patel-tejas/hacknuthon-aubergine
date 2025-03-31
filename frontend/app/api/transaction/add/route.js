@@ -186,7 +186,7 @@ export async function POST(request) {
       risk_actions: risk_analysis.actions,
       loop_participants: loop_analysis?.participants || [],
       full_analysis: riskData,  // Store complete analysis
-      status: risk_analysis.score < 0.7 ? "completed" : "under_review"
+      status: risk_analysis.score <= 0.6 ? "completed" : "under_review"
     });
 
     console.log("[DB] Saving transaction:", newTransaction);
