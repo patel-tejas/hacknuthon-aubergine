@@ -3,7 +3,7 @@ const { connect, set } = require('mongoose');
 const connectDB = async () => {
     try {
         set('strictQuery', false);
-        await connect("mongodb+srv://tejas:hn5NumpMCz4WhM1g@cluster0.ogdjiko.mongodb.net/hacknuthon?retryWrites=true&w=majority", {
+        await connect("mongodb+srv://tejas:password@cluster0.ogdjiko.mongodb.net/hacknuthon?retryWrites=true&w=majority", {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         });
